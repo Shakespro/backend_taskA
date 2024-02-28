@@ -25,3 +25,5 @@ Install the necessary dependencies for both frontend and backend components.
 Configure the PostgreSQL database connection.
 Run the application to start using the To-Do List App.
 Feel free to customize this README text further based on additional details or specific configurations of your app.
+
+The frontend component is frontend_task under the same profile https://github.com/Shakespro/frontend_task
