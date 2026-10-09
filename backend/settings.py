@@ -19,12 +19,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-b3buipt*efzo7ezf&x15r1p3=4811#898-tyt6y&n8^8nt4+-z'
+# Render sets RENDER=true. Local development uses a separate SQLite database.
+IS_PRODUCTION = os.environ.get("RENDER") == "true" or os.environ.get("DJANGO_ENV") == "production"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+
+if not SECRET_KEY:
+    if IS_PRODUCTION:
+        raise RuntimeError("Set DJANGO_SECRET_KEY in the hosting environment.")
+    SECRET_KEY = "development-only-key-do-not-use-in-production"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = not IS_PRODUCTION
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
+
+render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if render_hostname:
+    ALLOWED_HOSTS.append(render_hostname)
 
 
 # Application definition
@@ -77,14 +92,25 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# Production uses DATABASE_URL; local development never contacts the old database.
+database_url = os.environ.get("DATABASE_URL")
 
-DATABASES['default'] = dj_database_url.parse("postgres://backend_django_render_tm9a_user:CNzJ3DxpWQpKJXQd6jUsryjrwmUgev4s@dpg-cnfccfta73kc7392abc0-a.oregon-postgres.render.com/backend_django_render_tm9a")
+if database_url:
+    DATABASES = {
+        "default": dj_database_url.parse(database_url, conn_max_age=60),
+    }
+elif IS_PRODUCTION:
+    raise RuntimeError("Set DATABASE_URL before starting the production backend.")
+else:
+    local_data_directory = BASE_DIR / ".local-data"
+    local_data_directory.mkdir(exist_ok=True)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": local_data_directory / "db.sqlite3",
+        },
+    }
+
 
 
 # Password validation
@@ -106,9 +132,14 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Whitelist React port
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:3000',
-    'https://extraordinary-tulumba-59d969.netlify.app',
+# Browsers may call this API only from the configured frontend origins.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,https://extraordinary-tulumba-59d969.netlify.app",
+    ).split(",")
+    if origin.strip()
 ]
 
 # Internationalization
@@ -133,3 +164,18 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Send server errors to hosting logs so HTTP 500 failures can be diagnosed.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}

@@ -1,26 +1,16 @@
-FROM python:3.11
+FROM python:3.14-slim
 
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV DJANGO_ENV=production
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+# Install the exact versions tested locally before copying application source.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-COPY ./requirements.txt /app/
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+COPY . ./
 
-# Create and activate a virtual environment (optional)
-# RUN python -m venv /venv
-# ENV PATH="/venv/bin:$PATH"
-
-COPY . /app
-
-ENTRYPOINT ["gunicorn", "backend.wsgi", "-b", "0.0.0.0:8000"]
+# The host supplies PORT, DATABASE_URL, and DJANGO_SECRET_KEY at runtime.
+CMD ["sh", "./start.sh"]

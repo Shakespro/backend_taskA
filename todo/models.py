@@ -5,6 +5,6 @@ class Todo(models.Model):
     description = models.CharField(max_length=500)
     completed = models.BooleanField(default=False)
 
-    def _str_(self):
+    def __str__(self):
         return self.title
 

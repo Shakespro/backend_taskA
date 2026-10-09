@@ -1,0 +1,8 @@
+# Runtime dependencies; requirements.txt records tested exact versions.
+Django>=5.2.8,<5.3
+djangorestframework>=3.16,<4
+django-cors-headers>=4.7,<5
+dj-database-url>=2.3,<4
+psycopg[binary]>=3.2,<4
+gunicorn>=23,<24
+whitenoise>=6.9,<7
