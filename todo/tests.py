@@ -1,4 +1,6 @@
 from django.urls import reverse
+from django.core.cache import cache
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -7,6 +9,7 @@ from .models import Todo
 
 class TaskApiTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.list_url = reverse("task-list")
 
     def test_create_read_update_and_delete_task(self):
@@ -64,3 +67,28 @@ class TaskApiTests(APITestCase):
             HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
         )
         self.assertNotIn("Access-Control-Allow-Origin", response)
+
+
+class DemoLimitTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.url = reverse("task-list")
+
+    @override_settings(DEMO_TASK_LIMIT=1)
+    def test_task_cap_preserves_existing_data(self):
+        Todo.objects.create(title="Existing", description="Keep this task")
+        response = self.client.post(self.url, {"title": "Extra", "description": "Over quota"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Todo.objects.count(), 1)
+
+    def test_writes_are_throttled_without_blocking_reads(self):
+        from unittest.mock import patch
+        from .throttles import DemoWriteThrottle
+        with patch.object(DemoWriteThrottle, "get_rate", return_value="2/minute"):
+            for number in range(2):
+                response = self.client.post(self.url, {"title": f"Task {number}", "description": "Sample"})
+                self.assertEqual(response.status_code, 201)
+            response = self.client.post(self.url, {"title": "Limited", "description": "Sample"})
+            self.assertEqual(response.status_code, 429)
+            self.assertIn("Retry-After", response)
+            self.assertEqual(self.client.get(self.url).status_code, 200)

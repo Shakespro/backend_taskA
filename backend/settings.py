@@ -179,3 +179,16 @@ LOGGING = {
         },
     },
 }
+
+DEMO_TASK_LIMIT = int(os.environ.get("DEMO_TASK_LIMIT", "1000"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = 16 * 1024
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {
+        "demo_read": "120/minute",
+        "demo_write": "30/minute",
+    },
+}
+
+if IS_PRODUCTION:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

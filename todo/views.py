@@ -1,28 +1,27 @@
-from django.shortcuts import render
-from django.http import HttpResponse
-import mimetypes
+from django.conf import settings
+from django.db import connection, transaction
+from rest_framework import permissions, viewsets
+from rest_framework.exceptions import ValidationError
 
-from rest_framework import viewsets          
-from .serializers import TodoSerializer
 from .models import Todo
+from .serializers import TodoSerializer
+from .throttles import DemoReadThrottle, DemoWriteThrottle
 
-class TodoView(viewsets.ModelViewSet):       
-  serializer_class = TodoSerializer          
-  queryset = Todo.objects.all()
 
-def css_view(request):
-    # Replace 'path/to/your/style.css' with the actual path to your CSS file
-    css_file_path = 'C:/Users/sfihl/Documents/code/django-react-app/backend/staticfiles/admin/css'
+class TodoView(viewsets.ModelViewSet):
+    """Shared public demo. Use sample data only; other visitors can change tasks."""
 
-    # Open the CSS file and read its content
-    with open(css_file_path, 'r') as css_file:
-        css_content = css_file.read()
+    serializer_class = TodoSerializer
+    queryset = Todo.objects.order_by("id")
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [DemoReadThrottle, DemoWriteThrottle]
 
-    # Create an HttpResponse with the CSS content
-    response = HttpResponse(css_content, content_type='text/css')
-
-    # Optionally, you can set other headers or cache-related directives
-    # For example:
-    # response['Cache-Control'] = 'max-age=3600'  # Cache for 1 hour
-
-    return response
+    @transaction.atomic
+    def perform_create(self, serializer):
+        if connection.vendor == "postgresql":
+            table = connection.ops.quote_name(Todo._meta.db_table)
+            with connection.cursor() as cursor:
+                cursor.execute(f"LOCK TABLE {table} IN SHARE ROW EXCLUSIVE MODE")
+        if Todo.objects.count() >= settings.DEMO_TASK_LIMIT:
+            raise ValidationError("The demo is full. Remove a sample task before adding another.")
+        serializer.save()

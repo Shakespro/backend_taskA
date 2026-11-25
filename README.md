@@ -1,29 +1,45 @@
-To-Do List App
-This To-Do List App is a web application that consists of both frontend and backend components.
+# Titan Task API
 
-This repository in particular being the backend component.
+A shared task-management demo built with Python, Django REST Framework, and PostgreSQL. The live backend runs on Render and connects to Neon. Local development uses a separate SQLite database.
 
-The app allows users to create, manage, and organize tasks with options to mark them as complete or incomplete. The app is designed to provide a seamless experience between the frontend interface and the backend database.
+[Try the API](https://backend-taska-5.onrender.com/api/tasks/) · [React frontend source](https://github.com/Shakespro/frontend_task)
 
-Features
-Frontend Component: The frontend component of the app displays a user-friendly interface where users can add tasks with a title, description, and a checkbox to mark the task as complete or incomplete. The tasks are then separated based on their completion status for better organization.
+## API
 
-Backend Component: The backend component of the app provides API endpoints to interact with the data stored in a PostgreSQL database. Users can retrieve task data by clicking the "Get" button, and any changes made to the tasks in the backend will reflect on both the frontend and the database.
+| Method | Route | Action |
+| --- | --- | --- |
+| GET | `/api/tasks/` | List tasks |
+| POST | `/api/tasks/` | Create a task |
+| GET | `/api/tasks/{id}/` | Read a task |
+| PUT / PATCH | `/api/tasks/{id}/` | Update a task |
+| DELETE | `/api/tasks/{id}/` | Delete a task |
 
-Usage
-Adding Tasks: Users can add tasks by providing a title, description, and selecting the completion status using checkboxes on the frontend. These changes are reflected in real-time on the frontend interface.
+Tasks have a title, description, and completion status. Invalid input returns HTTP 400; missing records return 404.
 
-Backend Interaction: Clicking the "Get" button triggers an API call to fetch task data from the backend. Any modifications made to tasks in the backend database will automatically update both the frontend display and the database records.
+## Demo limits
 
-Technologies Used
-Frontend: HTML, CSS, JavaScript
-Backend: Python, Flask (or Django), PostgreSQL
-Other: JSON, RESTful API
-Setup
-Clone the repository to your local machine.
-Install the necessary dependencies for both frontend and backend components.
-Configure the PostgreSQL database connection.
-Run the application to start using the To-Do List App.
-Feel free to customize this README text further based on additional details or specific configurations of your app.
+This is a public, shared workspace. Visitors can change or delete any task. Use sample data only, never personal or confidential information. The free host may need about a minute to wake up.
 
-The frontend component is frontend_task under the same profile https://github.com/Shakespro/frontend_task
+The service allows 120 requests and 30 writes per minute per process, with a total cap of 1,000 tasks. Throttling is a basic usage limit, not DDoS protection. Multiple workers or instances require a shared throttle store. The PostgreSQL task cap is checked under a table lock to prevent concurrent creates from exceeding it.
+
+## Local development
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py runserver
+```
+
+## Checks
+
+```sh
+.venv/bin/python manage.py check
+.venv/bin/python manage.py test
+```
+
+## Deployment
+
+Configure `DATABASE_URL` and `DJANGO_SECRET_KEY` in the hosting environment. `start.sh` applies migrations, collects static assets, and starts Gunicorn. `.env.example` lists configuration names without credentials.
+
+Do not commit databases, environment files, credentials, or virtual environments. Legacy Git history contains an old development database and credentials; deleting them from the current tree does not revoke secrets or remove historical copies.
